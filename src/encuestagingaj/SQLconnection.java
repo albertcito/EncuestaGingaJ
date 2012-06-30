@@ -1,16 +1,10 @@
 package encuestagingaj;
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
-/**
- *
- * @author Albert
- */
 import java.sql.*;
 import java.util.Hashtable;
 
+/*
+ * 
+ */
 public class SQLconnection {
 
     private String user;
@@ -20,7 +14,9 @@ public class SQLconnection {
     private String url;
     private Connection conn = null;
     private Statement stm;
+    private Statement stm_count;
     private ResultSet rs;
+    private ResultSet rs_count;
 
     public SQLconnection()
     {
@@ -36,7 +32,7 @@ public class SQLconnection {
         this.url = "jdbc:mysql://" + this.host + "/" + this.db;
     }
 
-    public void connectar()
+    public boolean connectar()
     {
         try {
             Class.forName("org.gjt.mm.mysql.Driver");
@@ -44,6 +40,8 @@ public class SQLconnection {
             if (conn != null){
                 //System.out.println("Conexión a base de datos "+url+" … Ok");
                 stm = conn.createStatement();
+                stm_count = conn.createStatement();
+                return true;
             }
         }
         catch(SQLException ex) {
@@ -52,6 +50,7 @@ public class SQLconnection {
         catch(ClassNotFoundException ex) {
             System.out.println(ex);
         }
+        return false;
     }
 
     public String getDb() {
@@ -70,21 +69,6 @@ public class SQLconnection {
         this.host = host;
     }
 
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getUser() {
-        return user;
-    }
-
-    public void setUser(String user) {
-        this.user = user;
-    }
 
     public ResultSet consultar(String tabla) throws SQLException
     {
@@ -96,7 +80,7 @@ public class SQLconnection {
         
         int id = 0;
         try{
-            rs = stm.executeQuery("SELECT * FROM " + tabla + " LIMIT 1");
+            rs = stm.executeQuery("SELECT * FROM " + tabla + " ORDER BY id_votacion DESC LIMIT 1");
             rs.next();
             id = rs.getInt(1);
         }catch(SQLException ex){System.out.println(ex);}
@@ -115,25 +99,26 @@ public class SQLconnection {
         return name;
     }
     
-    public String[] getRespuestas(int id){
+    public String[][] getRespuestas(int id){
         
-        String respuestas[] = null;
+        String respuestas[][] = null;
         try{
             String 
                 sql_count      = "SELECT count(opcion) FROM opciones WHERE id_votacion = '"+id+"'",
-                sql_respuestas = "SELECT opcion FROM opciones WHERE id_votacion = '"+id+"'";
+                sql_respuestas = "SELECT opcion, id_opcion FROM opciones WHERE id_votacion = '"+id+"'";
             
             
             rs = stm.executeQuery(sql_count);
             rs.next();
             int n = rs.getInt(1);
-            respuestas = new String[n];
+            respuestas = new String[n][2];
             
             
             rs = stm.executeQuery(sql_respuestas);
             rs.next();
             for(int i = 0; i < n; i++){
-                respuestas[i] = rs.getString(1);
+                respuestas[i][0] = rs.getString(1);
+                respuestas[i][1] = rs.getString(2);
                 rs.next();
             }
             
@@ -142,13 +127,55 @@ public class SQLconnection {
         
     }
     
-    public void insertar(Hashtable usuario) 
+    public void insertar(int id_opcion,int id_votacion) 
     {
         try {
-            stm.execute("INSERT INTO usuarios (nombre, contraseña) VALUES ('" + usuario.get("nombre") + "','" + usuario.get("contraseña") + "')");
+            stm.execute("INSERT INTO voto (mac_tv, id_votacion,id_opcion) VALUES ('" + 1 + "','" +id_votacion + "', '"+id_opcion+"')");
         } catch (SQLException ex) {
             System.out.println(ex);
         }
+    }
+    
+    public String[][] getVotos(int id_encuesta){
+        
+        String votos[][] = null;
+        
+        try{
+            
+            //Aquí traigo el número de respuestas que xiste
+            String sql_count      = "SELECT count(opcion) FROM opciones WHERE id_votacion = '"+id_encuesta+"'",
+                   sql_respuestas = "SELECT opcion, id_opcion FROM opciones WHERE id_votacion = '"+id_encuesta+"'";
+            
+            rs = stm.executeQuery(sql_count);
+            rs.next();
+            int n = rs.getInt(1);
+            votos = new String[n][3];
+            
+            String no_votos = "";
+            rs = stm.executeQuery(sql_respuestas);
+            rs.next();
+            for(int i = 0; i < n; i++){
+                
+                votos[i][1] = rs.getString(2);
+                votos[i][2] = rs.getString(1);
+                rs.next();
+                
+                no_votos =  "SELECT COUNT( v.id_opcion ) "+
+                            "FROM voto v, opciones o "+
+                            "WHERE v.id_votacion =  '"+id_encuesta+"' "+
+                            "AND v.id_opcion = o.id_opcion "+
+                            "AND v.id_opcion = '"+votos[i][1]+"'";
+                
+                rs_count = stm_count.executeQuery(no_votos);
+                rs_count.next();
+                votos[i][0] = rs_count.getString(1);
+                rs_count.close();
+                System.out.println("VOTO "+votos[i][1]+" : "+ votos[i][0]);
+            }            
+            
+        }catch(SQLException ex){System.out.println(ex);}
+        return votos;
+        
     }
 
 }
