@@ -11,6 +11,14 @@ import xjavax.tv.xlet.*;
 import org.havi.ui.*;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.net.InetAddress;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.sql.SQLException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.LineBorder;
@@ -39,8 +47,9 @@ public class EncuestaGingaJ implements Xlet, KeyListener{
     private ImageIcon i_opcion, i_opcion_over, close_hover, close_out;
     private SQLconnection mi_bd;
     private boolean cerrar; 
+    private InetAddress ip;
     
-    
+    String mac = getMac();
     
     private JProgressBar progressBar[];
     
@@ -80,12 +89,22 @@ public class EncuestaGingaJ implements Xlet, KeyListener{
         escena.requestFocus();
         
         mi_bd = new SQLconnection("localhost","root","","ginga");
-        boolean conectado = mi_bd.connectar();        
-        
+        boolean conectado = mi_bd.connectar();
+
         if(conectado){
+            id_encuesta_actual = getIDEncuesta();
+            mac = getMac();
+            no_opciones = mi_bd.noRespuestas(id_encuesta_actual);
+            boolean voto = yaVoto(id_encuesta_actual);
+            s_pregunta = getPregunta();
             escena.remove(panel_load);
-            inicializaOpciones();
-            escena.add(p_opciones);
+            if(voto) {
+                inicializaEstadisticas();
+                escena.add(p_estadisticas);
+            } else {                
+                inicializaOpciones();
+                escena.add(p_opciones);
+            }
             escena.requestFocus();
             escena.repaint();          
         } else {
@@ -137,10 +156,7 @@ public class EncuestaGingaJ implements Xlet, KeyListener{
         f_pregunta = new Font("Arial", Font.BOLD, 15);
         c_pregunta = new Color(0x555555);
         
-        id_encuesta_actual = getIDEncuesta();
-        s_pregunta = getPregunta();       
         s_opciones = getRespuestas();
-        no_opciones = s_opciones.length;
             
         l_pregunta = new JLabel(s_pregunta,JLabel.CENTER);
             l_pregunta.setFont(f_pregunta);
@@ -348,7 +364,7 @@ public class EncuestaGingaJ implements Xlet, KeyListener{
                 }
                 else if(actual > -1 && no_opciones > 1){
                     int voto = Integer.parseInt(s_opciones[actual][1]);
-                    mi_bd.insertar(voto,id_encuesta_actual);
+                    mi_bd.insertar(voto,id_encuesta_actual,mac);
                     escena.remove(p_opciones);
                     inicializaEstadisticas();
                     escena.add(p_estadisticas);
@@ -380,8 +396,46 @@ public class EncuestaGingaJ implements Xlet, KeyListener{
  
     @Override
     public void keyReleased(KeyEvent e) {}
-     /* 
-    * Método que seta todos os componentes da aplicaçao 
-    */
-
+    /*
+     * retorna el Address MAC del equipo
+     */
+    public String getMac(){
+        InetAddress ip;
+        try {
+ 
+                ip = InetAddress.getLocalHost();
+                //System.out.println("Current IP address : " + ip.getHostAddress()); //Aquí imprime la dirección IP
+ 
+                NetworkInterface network = NetworkInterface.getByInetAddress(ip);
+ 
+                byte[] mac = network.getHardwareAddress();
+ 
+                //System.out.print("Current MAC address : ");
+ 
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < mac.length; i++) {
+                        sb.append(String.format("%02X%s", mac[i], (i < mac.length - 1) ? "-" : ""));            
+                }
+                //System.out.println(sb.toString()); //aquí imprime la MAC Address
+                return sb.toString();
+ 
+        } catch (UnknownHostException e) {
+ 
+                e.printStackTrace();
+ 
+        } catch (SocketException e){
+ 
+                e.printStackTrace();
+ 
+        }
+ 
+        return "";
+    }
+    /*
+     * Busca en la base de datos si el usuario ya ha votado
+     */
+    public boolean yaVoto(int id_encuesta_actual){       
+        boolean voto = mi_bd.yaVoto(mac,id_encuesta_actual);
+        return voto;
+    }
 }

@@ -127,10 +127,10 @@ public class SQLconnection {
         
     }
     
-    public void insertar(int id_opcion,int id_votacion) 
+    public void insertar(int id_opcion,int id_votacion,String MAC) 
     {
         try {
-            stm.execute("INSERT INTO voto (mac_tv, id_votacion,id_opcion) VALUES ('" + 1 + "','" +id_votacion + "', '"+id_opcion+"')");
+            stm.execute("INSERT INTO voto (mac_tv, id_votacion,id_opcion) VALUES ('" + MAC + "','" +id_votacion + "', '"+id_opcion+"')");
         } catch (SQLException ex) {
             System.out.println(ex);
         }
@@ -176,6 +176,38 @@ public class SQLconnection {
         }catch(SQLException ex){System.out.println(ex);}
         return votos;
         
+    }
+    /*
+     * Retorna verdadero si ya voto y false si aun no vota
+     */
+    public boolean yaVoto(String mac, int encuesta){
+        /**/
+        int n = 0;
+        String sql_count   = "SELECT count(*) FROM voto WHERE mac_tv = '"+mac+"' AND id_votacion = '"+encuesta+"'";
+        try{       
+            rs = stm.executeQuery(sql_count);
+            rs.next();
+            n =  rs.getInt(1);
+        }catch(SQLException ex){System.out.println(ex);}
+
+        if(n>0) return true;
+        /**/
+        return false;
+    }
+    /*
+     * 
+     */
+    public int noRespuestas(int id_encuesta){
+        /**/
+        int n = 0;
+        String sql_count      = "SELECT count(opcion) FROM opciones WHERE id_votacion = '"+id_encuesta+"'";
+        try{       
+            rs = stm.executeQuery(sql_count);
+            rs.next();
+            n =  rs.getInt(1);
+        }catch(SQLException ex){System.out.println(ex);}
+        
+        return n;
     }
 
 }
